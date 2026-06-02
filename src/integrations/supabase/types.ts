@@ -14,7 +14,260 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      cart_items: {
+        Row: {
+          created_at: string
+          file_type: string
+          id: string
+          include_architectural: boolean
+          plan_id: string
+          unit_price: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_type: string
+          id?: string
+          include_architectural?: boolean
+          plan_id: string
+          unit_price: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_type?: string
+          id?: string
+          include_architectural?: boolean
+          plan_id?: string
+          unit_price?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cart_items_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      downloads: {
+        Row: {
+          created_at: string
+          file_type: string
+          id: string
+          include_architectural: boolean
+          order_id: string | null
+          plan_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_type: string
+          id?: string
+          include_architectural?: boolean
+          order_id?: string | null
+          plan_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_type?: string
+          id?: string
+          include_architectural?: boolean
+          order_id?: string | null
+          plan_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "downloads_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "downloads_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_items: {
+        Row: {
+          file_type: string
+          id: string
+          include_architectural: boolean
+          order_id: string
+          plan_id: string
+          unit_price: number
+        }
+        Insert: {
+          file_type: string
+          id?: string
+          include_architectural?: boolean
+          order_id: string
+          plan_id: string
+          unit_price: number
+        }
+        Update: {
+          file_type?: string
+          id?: string
+          include_architectural?: boolean
+          order_id?: string
+          plan_id?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          created_at: string
+          id: string
+          payment_provider: string
+          status: string
+          total: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payment_provider: string
+          status?: string
+          total: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payment_provider?: string
+          status?: string
+          total?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      plans: {
+        Row: {
+          architectural_addon_price: number
+          base_price: number
+          baths: number
+          beds: number
+          cad_addon_price: number
+          cars: number
+          created_at: string
+          depth_ft: number
+          depth_in: number
+          description: string | null
+          featured: boolean
+          gallery: Json | null
+          half_baths: number
+          id: string
+          image_url: string | null
+          name: string
+          plan_number: string
+          sqft: number
+          stories: number
+          style: string | null
+          width_ft: number
+          width_in: number
+        }
+        Insert: {
+          architectural_addon_price?: number
+          base_price: number
+          baths: number
+          beds: number
+          cad_addon_price?: number
+          cars?: number
+          created_at?: string
+          depth_ft: number
+          depth_in?: number
+          description?: string | null
+          featured?: boolean
+          gallery?: Json | null
+          half_baths?: number
+          id?: string
+          image_url?: string | null
+          name: string
+          plan_number: string
+          sqft: number
+          stories?: number
+          style?: string | null
+          width_ft: number
+          width_in?: number
+        }
+        Update: {
+          architectural_addon_price?: number
+          base_price?: number
+          baths?: number
+          beds?: number
+          cad_addon_price?: number
+          cars?: number
+          created_at?: string
+          depth_ft?: number
+          depth_in?: number
+          description?: string | null
+          featured?: boolean
+          gallery?: Json | null
+          half_baths?: number
+          id?: string
+          image_url?: string | null
+          name?: string
+          plan_number?: string
+          sqft?: number
+          stories?: number
+          style?: string | null
+          width_ft?: number
+          width_in?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
