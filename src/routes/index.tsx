@@ -1,29 +1,34 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
+import { HeroSlideshow } from "@/components/home/HeroSlideshow";
+import { Ticker } from "@/components/home/Ticker";
+import { PlansSection } from "@/components/home/PlansSection";
+import { About } from "@/components/home/About";
+import { Testimonials } from "@/components/home/Testimonials";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Your App" },
-      { name: "description", content: "Replace this with a one-sentence description of your app." },
-      { property: "og:title", content: "Your App" },
-      { property: "og:description", content: "Replace this with a one-sentence description of your app." },
+      { title: "StructNova Designs — Premium American House Plans" },
+      { name: "description", content: "Architect-approved house plans with instant PDF & CAD downloads. Browse modern farmhouse, craftsman, contemporary and more." },
     ],
   }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main>
+        <HeroSlideshow />
+        <Ticker />
+        <PlansSection />
+        <About />
+        <Testimonials />
+      </main>
+      <Footer />
     </div>
   );
 }
