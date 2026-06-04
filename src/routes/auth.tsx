@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEnvelope, faLock, faUser, faArrowRight } from "@fortawesome/free-solid-svg-icons";
+import { faEnvelope, faLock, faUser, faArrowRight, faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 import { faGoogle } from "@fortawesome/free-brands-svg-icons";
 import { toast } from "sonner";
 import { useEffect } from "react";
