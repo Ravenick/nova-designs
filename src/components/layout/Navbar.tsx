@@ -1,6 +1,6 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCartShopping, faDownload, faRightToBracket, faRightFromBracket, faBars, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faCartShopping, faDownload, faRightToBracket, faRightFromBracket, faBars, faXmark, faHeart } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/hooks/useCart";
 import { useState } from "react";
@@ -37,6 +37,10 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <Link to="/favorites" className="hidden items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-primary sm:inline-flex">
+            <FontAwesomeIcon icon={faHeart} />
+            Favorites
+          </Link>
           <Link to="/downloads" className="hidden items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-primary sm:inline-flex">
             <FontAwesomeIcon icon={faDownload} />
             Downloads

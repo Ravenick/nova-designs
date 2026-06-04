@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faDownload, faFilePdf, faFileCode, faDraftingCompass, faCloudArrowDown } from "@fortawesome/free-solid-svg-icons";
+import { faDownload, faFilePdf, faFileCode, faDraftingCompass, faCloudArrowDown, faEnvelope, faLock } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "sonner";
 import type { Plan } from "@/types/plan";
 
@@ -14,6 +14,9 @@ type Row = {
   created_at: string;
   file_type: "pdf" | "cad_pdf";
   include_architectural: boolean;
+  downloads_remaining: number;
+  downloads_used: number;
+  plan_id: string;
   plan: Pick<Plan, "id" | "name" | "plan_number" | "image_url">;
 };
 
@@ -26,22 +29,52 @@ function Downloads() {
   const { user, loading } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(true);
+  const [working, setWorking] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = async () => {
     if (!user) { setBusy(false); return; }
-    (async () => {
-      const { data } = await supabase
-        .from("downloads")
-        .select("id, created_at, file_type, include_architectural, plan:plans(id,name,plan_number,image_url)")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      setRows((data as unknown as Row[]) ?? []);
-      setBusy(false);
-    })();
-  }, [user]);
+    const { data } = await supabase
+      .from("downloads")
+      .select("id, created_at, file_type, include_architectural, downloads_remaining, downloads_used, plan_id, plan:plans(id,name,plan_number,image_url)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    setRows((data as unknown as Row[]) ?? []);
+    setBusy(false);
+  };
 
-  const onDownload = (r: Row) => {
-    toast.success(`Preparing ${r.plan.name} (${r.file_type === "cad_pdf" ? "CAD + PDF" : "PDF"})…`);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user]);
+
+  const consume = async (r: Row): Promise<boolean> => {
+    if (r.downloads_remaining <= 0) {
+      toast.error("You've used all 3 downloads for this purchase. Please repurchase the plan to download again.");
+      return false;
+    }
+    const { error } = await supabase
+      .from("downloads")
+      .update({ downloads_remaining: r.downloads_remaining - 1, downloads_used: r.downloads_used + 1 })
+      .eq("id", r.id);
+    if (error) { toast.error(error.message); return false; }
+    return true;
+  };
+
+  const onDownload = async (r: Row) => {
+    setWorking(r.id);
+    const ok = await consume(r);
+    if (ok) {
+      toast.success(`Preparing ${r.plan.name} (${r.file_type === "cad_pdf" ? "CAD + PDF" : "PDF"})…`);
+      await load();
+    }
+    setWorking(null);
+  };
+
+  const onEmail = async (r: Row) => {
+    setWorking(r.id);
+    const ok = await consume(r);
+    if (ok) {
+      toast.success(`Download link sent to ${user?.email}.`);
+      await load();
+    }
+    setWorking(null);
   };
 
   return (
@@ -51,14 +84,14 @@ function Downloads() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">My Downloads</h1>
-            <p className="mt-1 text-sm text-muted-foreground">All your purchased plans, available anytime.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Each purchase allows up to <strong>3 downloads</strong> total (direct + email).</p>
           </div>
           <FontAwesomeIcon icon={faCloudArrowDown} className="hidden text-4xl text-primary/30 sm:block" />
         </div>
 
         {loading || busy ? (
           <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-44 animate-pulse rounded-2xl bg-secondary" />)}
+            {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-64 animate-pulse rounded-2xl bg-secondary" />)}
           </div>
         ) : !user ? (
           <div className="mt-10 rounded-2xl border border-dashed border-border bg-card p-10 text-center">
@@ -71,34 +104,65 @@ function Downloads() {
           </div>
         ) : (
           <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {rows.map((r) => (
-              <div key={r.id} className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
-                <div className="relative aspect-[5/3] w-full overflow-hidden bg-secondary">
-                  {r.plan.image_url && <img src={r.plan.image_url} alt={r.plan.name} className="h-full w-full object-cover" />}
-                </div>
-                <div className="p-5">
-                  <div className="text-[11px] font-bold uppercase tracking-widest text-primary/70">Plan #{r.plan.plan_number}</div>
-                  <div className="mt-0.5 text-base font-bold">{r.plan.name}</div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5">
-                      <FontAwesomeIcon icon={r.file_type === "cad_pdf" ? faFileCode : faFilePdf} />
-                      {r.file_type === "cad_pdf" ? "CAD + PDF" : "PDF"}
-                    </span>
-                    {r.include_architectural && (
+            {rows.map((r) => {
+              const exhausted = r.downloads_remaining <= 0;
+              return (
+                <div key={r.id} className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+                  <div className="relative aspect-[5/3] w-full overflow-hidden bg-secondary">
+                    {r.plan.image_url && <img src={r.plan.image_url} alt={r.plan.name} className="h-full w-full object-cover" />}
+                    <div className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${exhausted ? "bg-red-500 text-white" : "bg-white/95 text-primary"}`}>
+                      {r.downloads_remaining}/3 left
+                    </div>
+                  </div>
+                  <div className="p-5">
+                    <div className="text-[11px] font-bold uppercase tracking-widest text-primary/70">Plan #{r.plan.plan_number}</div>
+                    <div className="mt-0.5 text-base font-bold">{r.plan.name}</div>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5">
-                        <FontAwesomeIcon icon={faDraftingCompass} /> Architectural
+                        <FontAwesomeIcon icon={r.file_type === "cad_pdf" ? faFileCode : faFilePdf} />
+                        {r.file_type === "cad_pdf" ? "CAD + PDF" : "PDF"}
                       </span>
+                      {r.include_architectural && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5">
+                          <FontAwesomeIcon icon={faDraftingCompass} /> Architectural
+                        </span>
+                      )}
+                    </div>
+                    {exhausted ? (
+                      <div className="mt-4 space-y-2">
+                        <div className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-xs font-medium text-red-700">
+                          <FontAwesomeIcon icon={faLock} />
+                          All 3 downloads used. Repurchase to download again.
+                        </div>
+                        <Link
+                          to="/"
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+                        >
+                          Repurchase plan
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <button
+                          disabled={working === r.id}
+                          onClick={() => onDownload(r)}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-60"
+                        >
+                          <FontAwesomeIcon icon={faDownload} /> Download
+                        </button>
+                        <button
+                          disabled={working === r.id}
+                          onClick={() => onEmail(r)}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary py-2.5 text-sm font-semibold text-primary hover:bg-primary/5 disabled:opacity-60"
+                        >
+                          <FontAwesomeIcon icon={faEnvelope} /> Email
+                        </button>
+                      </div>
                     )}
                   </div>
-                  <button
-                    onClick={() => onDownload(r)}
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
-                  >
-                    <FontAwesomeIcon icon={faDownload} /> Download
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>
