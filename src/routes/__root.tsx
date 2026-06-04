@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/hooks/useAuth";
 import { CartProvider } from "@/hooks/useCart";
+import { FavoritesProvider } from "@/hooks/useFavorites";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
