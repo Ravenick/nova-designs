@@ -112,7 +112,7 @@ function AuthPage() {
               <Field icon={faUser} type="text" placeholder="Full name" value={name} onChange={setName} />
             )}
             <Field icon={faEnvelope} type="email" placeholder="Email address" value={email} onChange={setEmail} required />
-            {mode !== "forgot" && <Field icon={faLock} type="password" placeholder="Password" value={password} onChange={setPassword} required minLength={6} />}
+            {mode !== "forgot" && <PasswordField value={password} onChange={setPassword} />}
 
             <button
               disabled={loading}
@@ -159,6 +159,32 @@ function Field({
         minLength={minLength}
         className="h-12 w-full rounded-xl border border-border bg-background pl-11 pr-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
       />
+    </div>
+  );
+}
+
+function PasswordField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <FontAwesomeIcon icon={faLock} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+      <input
+        type={show ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Password"
+        required
+        minLength={6}
+        className="h-12 w-full rounded-xl border border-border bg-background pl-11 pr-11 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+      />
+      <button
+        type="button"
+        onClick={() => setShow((s) => !s)}
+        aria-label={show ? "Hide password" : "Show password"}
+        className="absolute right-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-primary"
+      >
+        <FontAwesomeIcon icon={show ? faEyeSlash : faEye} />
+      </button>
     </div>
   );
 }
