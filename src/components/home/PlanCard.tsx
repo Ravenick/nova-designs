@@ -3,9 +3,26 @@ import { SpecGrid } from "./SpecGrid";
 import { usd } from "@/lib/format";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeart, faEye } from "@fortawesome/free-solid-svg-icons";
+import { faHeart as faHeartOutline } from "@fortawesome/free-regular-svg-icons";
 import { motion } from "framer-motion";
+import { useFavorites } from "@/hooks/useFavorites";
+import { toast } from "sonner";
+import type { MouseEvent } from "react";
 
 export function PlanCard({ plan, onOpen }: { plan: Plan; onOpen: (p: Plan) => void }) {
+  const { isFav, toggle } = useFavorites();
+  const favorited = isFav(plan.id);
+
+  const onHeart = async (e: MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await toggle(plan.id);
+      toast.success(favorited ? "Removed from favorites" : "Added to favorites");
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  };
+
   return (
     <motion.button
       onClick={() => onOpen(plan)}
@@ -22,9 +39,16 @@ export function PlanCard({ plan, onOpen }: { plan: Plan; onOpen: (p: Plan) => vo
             loading="lazy"
           />
         )}
-        <div className="absolute right-3 bottom-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-primary shadow-card">
-          <FontAwesomeIcon icon={faHeart} />
-        </div>
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={onHeart}
+          onKeyDown={(e) => { if (e.key === "Enter") onHeart(e as unknown as MouseEvent); }}
+          aria-label={favorited ? "Remove from favorites" : "Save to favorites"}
+          className={`absolute right-3 bottom-3 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/95 shadow-card transition ${favorited ? "text-red-500" : "text-primary hover:text-red-500"}`}
+        >
+          <FontAwesomeIcon icon={favorited ? faHeart : faHeartOutline} />
+        </span>
         {plan.featured && (
           <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary-foreground">
             Featured

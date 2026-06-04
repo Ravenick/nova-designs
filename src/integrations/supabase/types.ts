@@ -55,6 +55,8 @@ export type Database = {
       downloads: {
         Row: {
           created_at: string
+          downloads_remaining: number
+          downloads_used: number
           file_type: string
           id: string
           include_architectural: boolean
@@ -64,6 +66,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          downloads_remaining?: number
+          downloads_used?: number
           file_type: string
           id?: string
           include_architectural?: boolean
@@ -73,6 +77,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          downloads_remaining?: number
+          downloads_used?: number
           file_type?: string
           id?: string
           include_architectural?: boolean
@@ -96,6 +102,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      favorites: {
+        Row: {
+          created_at: string
+          id: string
+          plan_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan_id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       order_items: {
         Row: {
