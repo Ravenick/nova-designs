@@ -62,7 +62,7 @@ function FavoritesPage() {
           </div>
         )}
       </main>
-      <PlanDetailModal plan={open} onClose={() => setOpen(null)} />
+      <PlanDetailModal plan={open} open={!!open} onOpenChange={(v) => !v && setOpen(null)} />
       <Footer />
     </div>
   );
