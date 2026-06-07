@@ -45,6 +45,10 @@ export function Footer() {
       </div>
       <div className="border-t border-white/10 py-5 text-center text-xs text-primary-foreground/60">
         © {new Date().getFullYear()} StructNova Designs. All rights reserved.
+        <span className="mx-2 opacity-30">·</span>
+        <Link to="/admin/login" className="opacity-40 hover:opacity-100 hover:text-primary transition" aria-label="Architect portal">
+          ◆
+        </Link>
       </div>
     </footer>
   );
