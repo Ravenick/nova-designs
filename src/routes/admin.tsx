@@ -20,7 +20,7 @@ import {
   faFile,
 } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "sonner";
-import { fmtUSD } from "@/lib/format";
+import { usd } from "@/lib/format";
 
 export const Route = createFileRoute("/admin")({
   ssr: false,
@@ -140,7 +140,7 @@ function Overview() {
   if (!stats) return <div className="text-sm text-muted-foreground">Loading…</div>;
 
   const cards = [
-    { label: "Revenue", value: fmtUSD(stats.revenue), icon: faReceipt, accent: "text-emerald-600" },
+    { label: "Revenue", value: usd(stats.revenue), icon: faReceipt, accent: "text-emerald-600" },
     { label: "Paid Orders", value: stats.orderCount.toLocaleString(), icon: faReceipt, accent: "text-primary" },
     { label: "Plans", value: stats.planCount.toLocaleString(), icon: faLayerGroup, accent: "text-amber-600" },
     { label: "Downloads", value: stats.downloadCount.toLocaleString(), icon: faDownload, accent: "text-sky-600" },
@@ -177,7 +177,7 @@ function Overview() {
                   <tr key={o.id} className="border-t border-border">
                     <td className="py-2 pr-4 font-mono text-xs">{o.id.slice(0, 8)}</td>
                     <td className="py-2 pr-4">{o.email ?? "—"}</td>
-                    <td className="py-2 pr-4 font-semibold">{fmtUSD(Number(o.total))}</td>
+                    <td className="py-2 pr-4 font-semibold">{usd(Number(o.total))}</td>
                     <td className="py-2 pr-4 text-muted-foreground">{new Date(o.created_at).toLocaleString()}</td>
                   </tr>
                 ))}
@@ -299,7 +299,7 @@ function PlansAdmin() {
                   </td>
                   <td className="px-4 py-2 font-mono text-xs">{p.plan_number}</td>
                   <td className="px-4 py-2 font-semibold">{p.name}</td>
-                  <td className="px-4 py-2">{fmtUSD(Number(p.base_price))}</td>
+                  <td className="px-4 py-2">{usd(Number(p.base_price))}</td>
                   <td className="px-4 py-2">{p.sqft.toLocaleString()}</td>
                   <td className="px-4 py-2">{p.beds} / {p.baths}{p.half_baths ? `.${p.half_baths}` : ""}</td>
                   <td className="px-4 py-2">{p.featured ? "★" : "—"}</td>
@@ -626,7 +626,7 @@ function OrdersAdmin() {
                   <td className="px-4 py-2 font-mono text-xs">{o.id.slice(0, 8)}</td>
                   <td className="px-4 py-2">{o.email ?? "—"}</td>
                   <td className="px-4 py-2">{o.items}</td>
-                  <td className="px-4 py-2 font-semibold">{fmtUSD(Number(o.total))}</td>
+                  <td className="px-4 py-2 font-semibold">{usd(Number(o.total))}</td>
                   <td className="px-4 py-2">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${o.status === "paid" ? "bg-emerald-100 text-emerald-800" : o.status === "pending" ? "bg-amber-100 text-amber-800" : "bg-secondary text-muted-foreground"}`}>{o.status}</span>
                   </td>
