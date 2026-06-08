@@ -200,6 +200,7 @@ export type Database = {
           baths: number
           beds: number
           cad_addon_price: number
+          cad_file_path: string | null
           cars: number
           created_at: string
           depth_ft: number
@@ -211,6 +212,7 @@ export type Database = {
           id: string
           image_url: string | null
           name: string
+          pdf_file_path: string | null
           plan_number: string
           sqft: number
           stories: number
@@ -224,6 +226,7 @@ export type Database = {
           baths: number
           beds: number
           cad_addon_price?: number
+          cad_file_path?: string | null
           cars?: number
           created_at?: string
           depth_ft: number
@@ -235,6 +238,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           name: string
+          pdf_file_path?: string | null
           plan_number: string
           sqft: number
           stories?: number
@@ -248,6 +252,7 @@ export type Database = {
           baths?: number
           beds?: number
           cad_addon_price?: number
+          cad_file_path?: string | null
           cars?: number
           created_at?: string
           depth_ft?: number
@@ -259,6 +264,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           name?: string
+          pdf_file_path?: string | null
           plan_number?: string
           sqft?: number
           stories?: number
