@@ -17,7 +17,10 @@ type Row = {
   downloads_remaining: number;
   downloads_used: number;
   plan_id: string;
-  plan: Pick<Plan, "id" | "name" | "plan_number" | "image_url">;
+  plan: Pick<Plan, "id" | "name" | "plan_number" | "image_url"> & {
+    pdf_file_path: string | null;
+    cad_file_path: string | null;
+  };
 };
 
 export const Route = createFileRoute("/downloads")({
@@ -35,7 +38,7 @@ function Downloads() {
     if (!user) { setBusy(false); return; }
     const { data } = await supabase
       .from("downloads")
-      .select("id, created_at, file_type, include_architectural, downloads_remaining, downloads_used, plan_id, plan:plans(id,name,plan_number,image_url)")
+      .select("id, created_at, file_type, include_architectural, downloads_remaining, downloads_used, plan_id, plan:plans(id,name,plan_number,image_url,pdf_file_path,cad_file_path)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     setRows((data as unknown as Row[]) ?? []);
@@ -57,22 +60,75 @@ function Downloads() {
     return true;
   };
 
+  const getSignedUrls = async (r: Row): Promise<{ url: string; filename: string }[]> => {
+    const out: { url: string; filename: string }[] = [];
+    const wantsCad = r.file_type === "cad_pdf";
+    const paths: { path: string | null; tag: string }[] = [
+      { path: r.plan.pdf_file_path, tag: "PDF" },
+      ...(wantsCad ? [{ path: r.plan.cad_file_path, tag: "CAD" }] : []),
+    ];
+    for (const p of paths) {
+      if (!p.path) continue;
+      const { data, error } = await supabase.storage.from("plan-files").createSignedUrl(p.path, 60 * 60, {
+        download: `${r.plan.plan_number}-${r.plan.name.replace(/\s+/g, "_")}-${p.tag}.${p.path.split(".").pop()}`,
+      });
+      if (error) throw error;
+      out.push({ url: data.signedUrl, filename: p.path.split("/").pop() ?? p.tag });
+    }
+    return out;
+  };
+
   const onDownload = async (r: Row) => {
     setWorking(r.id);
-    const ok = await consume(r);
-    if (ok) {
-      toast.success(`Preparing ${r.plan.name} (${r.file_type === "cad_pdf" ? "CAD + PDF" : "PDF"})…`);
+    try {
+      const links = await getSignedUrls(r);
+      if (links.length === 0) {
+        toast.error("Files aren't available yet. Please contact support.");
+        setWorking(null);
+        return;
+      }
+      const ok = await consume(r);
+      if (!ok) { setWorking(null); return; }
+      // Trigger downloads — small delay between files
+      for (const l of links) {
+        const a = document.createElement("a");
+        a.href = l.url;
+        a.download = l.filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        await new Promise((res) => setTimeout(res, 400));
+      }
+      toast.success(`${r.plan.name} download started.`);
       await load();
+    } catch (e) {
+      toast.error((e as Error).message);
     }
     setWorking(null);
   };
 
   const onEmail = async (r: Row) => {
     setWorking(r.id);
-    const ok = await consume(r);
-    if (ok) {
-      toast.success(`Download link sent to ${user?.email}.`);
+    try {
+      const links = await getSignedUrls(r);
+      if (links.length === 0) {
+        toast.error("Files aren't available yet. Please contact support.");
+        setWorking(null);
+        return;
+      }
+      const ok = await consume(r);
+      if (!ok) { setWorking(null); return; }
+      const subject = encodeURIComponent(`Your StructNova plan: ${r.plan.name} (#${r.plan.plan_number})`);
+      const body = encodeURIComponent(
+        `Hi,\n\nHere are your secure download links for "${r.plan.name}" (Plan #${r.plan.plan_number}).\nLinks expire in 1 hour.\n\n` +
+        links.map((l, i) => `${i + 1}. ${l.url}`).join("\n\n") +
+        `\n\n— StructNova Designs`
+      );
+      window.location.href = `mailto:${user?.email}?subject=${subject}&body=${body}`;
+      toast.success(`Email draft opened for ${user?.email}.`);
       await load();
+    } catch (e) {
+      toast.error((e as Error).message);
     }
     setWorking(null);
   };

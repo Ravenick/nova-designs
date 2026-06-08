@@ -20,6 +20,8 @@ export type Plan = {
   depth_in: number;
   style: string | null;
   featured: boolean;
+  pdf_file_path?: string | null;
+  cad_file_path?: string | null;
   created_at: string;
 };
 

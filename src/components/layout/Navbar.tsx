@@ -55,16 +55,38 @@ export function Navbar() {
             )}
           </Link>
           {user ? (
-            <button
-              onClick={async () => {
-                await signOut();
-                router.navigate({ to: "/" });
-              }}
-              className="hidden items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-card transition hover:bg-primary-dark sm:inline-flex"
-            >
-              <FontAwesomeIcon icon={faRightFromBracket} />
-              Sign out
-            </button>
+            <div className="relative hidden sm:block group">
+              <button
+                className="flex items-center gap-2 rounded-full bg-secondary py-1 pl-1 pr-3 text-sm font-semibold text-primary-dark transition hover:bg-accent"
+                aria-label="Account"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold uppercase text-primary-foreground">
+                  {(user.user_metadata?.full_name || user.user_metadata?.name || user.email || "?").trim().charAt(0)}
+                </span>
+                <span className="max-w-[140px] truncate">
+                  {(user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0])}
+                </span>
+              </button>
+              <div className="invisible absolute right-0 top-full z-50 mt-2 w-64 rounded-2xl border border-border bg-card p-3 opacity-0 shadow-card transition group-hover:visible group-hover:opacity-100">
+                <div className="px-2 py-1">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Signed in as</div>
+                  <div className="mt-0.5 truncate text-sm font-semibold">{user.email}</div>
+                </div>
+                <div className="my-2 h-px bg-border" />
+                <Link to="/favorites" className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-secondary">
+                  <FontAwesomeIcon icon={faHeart} className="w-4" /> Favorites
+                </Link>
+                <Link to="/downloads" className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-secondary">
+                  <FontAwesomeIcon icon={faDownload} className="w-4" /> Downloads
+                </Link>
+                <button
+                  onClick={async () => { await signOut(); router.navigate({ to: "/" }); }}
+                  className="mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
+                >
+                  <FontAwesomeIcon icon={faRightFromBracket} className="w-4" /> Sign out
+                </button>
+              </div>
+            </div>
           ) : (
             <Link
               to="/auth"
