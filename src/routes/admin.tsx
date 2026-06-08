@@ -213,6 +213,8 @@ type Plan = {
   depth_in: number;
   style: string | null;
   featured: boolean;
+  pdf_file_path: string | null;
+  cad_file_path: string | null;
 };
 
 function PlansAdmin() {
@@ -369,6 +371,8 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
       depth_in: 0,
       style: "",
       featured: false,
+      pdf_file_path: null,
+      cad_file_path: null,
     }
   );
   const [saving, setSaving] = useState(false);
@@ -400,11 +404,12 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
   const onFileUpload = async (file: File, kind: "pdf" | "cad") => {
     setUploading(kind);
     try {
-      // store under plan-files with kind prefix; URL stored only in admin context (downloads delivered separately)
       const ext = file.name.split(".").pop() ?? "bin";
       const path = `${form.plan_number || "draft"}/${kind}-${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from("plan-files").upload(path, file, { upsert: true, contentType: file.type });
       if (error) throw error;
+      if (kind === "pdf") set("pdf_file_path", path);
+      else set("cad_file_path", path);
       toast.success(`${kind.toUpperCase()} file uploaded`);
     } catch (e) { toast.error((e as Error).message); }
     finally { setUploading(null); }
@@ -571,8 +576,15 @@ function NumField({ label, value, onChange, step }: { label: string; value: numb
   return (
     <div>
       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
-      <input type="number" step={step ?? 1} value={value} onChange={(e) => onChange(Number(e.target.value))}
-        className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+      <input
+        type="number"
+        step={step ?? 1}
+        value={value === 0 ? "" : value}
+        placeholder="0"
+        onFocus={(e) => e.target.select()}
+        onChange={(e) => onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+        className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+      />
     </div>
   );
 }

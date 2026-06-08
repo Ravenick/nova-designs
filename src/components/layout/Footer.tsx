@@ -35,7 +35,7 @@ export function Footer() {
         <div>
           <h4 className="text-sm font-semibold uppercase tracking-wider text-primary-foreground/60">Support</h4>
           <ul className="mt-4 space-y-2 text-sm">
-            <li><a href="mailto:support@structnovadesigns.com" className="hover:underline">support@structnovadesigns.com</a></li>
+            <li><a href="mailto:structnovadesigns.support@gmail.com" className="hover:underline">structnovadesigns.support@gmail.com</a></li>
             <li>Mon–Fri, 9am – 6pm EST</li>
             <li><Link to="/privacy" className="hover:underline">Privacy Policy</Link></li>
             <li><Link to="/cookies" className="hover:underline">Cookie Policy</Link></li>
