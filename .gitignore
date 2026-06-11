@@ -11,14 +11,8 @@ node_modules
 dist
 dist-ssr
 .output
-.vinxi
-.tanstack/**
-.nitro
+.next
 *.local
-
-# Wrangler / Cloudflare
-.wrangler/
-.dev.vars
 
 # Editor directories and files
 .vscode/*
@@ -30,3 +24,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
