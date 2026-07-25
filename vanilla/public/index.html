@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StructNova Designs — Premium American House Plans</title>
+  <meta name="description" content="Architect-approved house plans with instant PDF & CAD downloads. Modern farmhouse, craftsman, contemporary and more." />
+  <link rel="stylesheet" href="/css/output.css" />
+  <link rel="icon" href="/assets/logo.png" />
+</head>
+<body>
+  <div id="site-nav"></div>
+
+  <main>
+    <!-- Hero slideshow -->
+    <section class="relative isolate h-[640px] md:h-[720px] w-full overflow-hidden" id="hero">
+      <div id="hero-slides" class="absolute inset-0"></div>
+      <div class="relative z-10 mx-auto flex h-full max-w-7xl flex-col justify-center px-4 sm:px-6 lg:px-8">
+        <div id="hero-content" class="max-w-2xl text-primary-foreground"></div>
+        <div id="hero-dots" class="absolute bottom-8 left-4 sm:left-6 lg:left-8 flex gap-2"></div>
+      </div>
+    </section>
+
+    <!-- Ticker -->
+    <div class="border-y border-border bg-secondary/60 overflow-hidden">
+      <div class="ticker-track flex gap-12 whitespace-nowrap py-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+        <span>✦ Architect-approved</span><span>✦ Instant PDF & CAD downloads</span><span>✦ 5,000+ homes built</span><span>✦ U.S. building code ready</span>
+        <span>✦ Architect-approved</span><span>✦ Instant PDF & CAD downloads</span><span>✦ 5,000+ homes built</span><span>✦ U.S. building code ready</span>
+      </div>
+    </div>
+
+    <!-- Plans section -->
+    <section id="plans" class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Catalog</div>
+          <h2 class="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">House Plans built to inspire</h2>
+          <p class="mt-2 max-w-2xl text-muted-foreground">Browse our growing collection of architect-approved plans. Click any card for full specs and to add to cart.</p>
+        </div>
+        <div class="text-sm text-muted-foreground"><span id="plan-count">0</span> plans</div>
+      </div>
+
+      <div class="mt-8 grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-card md:grid-cols-12">
+        <div class="relative md:col-span-4">
+          <input id="f-q" placeholder="Search by name, # or style" class="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-primary/70">Style</label>
+          <select id="f-style" class="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"><option>All</option></select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-primary/70">Beds</label>
+          <select id="f-beds" class="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm">
+            <option>Any</option><option>1+</option><option>2+</option><option>3+</option><option>4+</option><option>5+</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-primary/70">Stories</label>
+          <select id="f-stories" class="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm">
+            <option>Any</option><option>1</option><option>2</option><option>3+</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-primary/70">Sort</label>
+          <select id="f-sort" class="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm">
+            <option value="featured">Featured</option>
+            <option value="price-asc">Price: Low → High</option>
+            <option value="price-desc">Price: High → Low</option>
+            <option value="sqft-desc">Largest first</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="plans-grid" class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"></div>
+    </section>
+
+    <!-- About -->
+    <section id="about" class="border-t border-border bg-secondary/50">
+      <div class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 grid gap-10 lg:grid-cols-2 items-center">
+        <div>
+          <div class="text-xs font-bold uppercase tracking-[0.2em] text-primary">About</div>
+          <h2 class="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">Architect-crafted plans, delivered instantly.</h2>
+          <p class="mt-4 text-muted-foreground max-w-xl">Every plan in our catalog is drawn by licensed architects and reviewed for constructability. Buy once — get PDF construction sets, optional CAD files, and lifetime access from your downloads library.</p>
+          <ul class="mt-6 grid gap-3 text-sm">
+            <li>✓ Instant download after purchase</li>
+            <li>✓ PDF and CAD file packages</li>
+            <li>✓ Ready for U.S. building codes</li>
+            <li>✓ Modifications available on request</li>
+          </ul>
+        </div>
+        <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1400&q=80" alt="Modern home" class="rounded-2xl shadow-card w-full h-auto" />
+      </div>
+    </section>
+  </main>
+
+  <div id="site-footer"></div>
+
+  <script type="module" src="/js/partials.js"></script>
+  <script type="module" src="/js/home.js"></script>
+</body>
+</html>
