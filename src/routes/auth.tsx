@@ -10,6 +10,24 @@ import { faGoogle } from "@fortawesome/free-brands-svg-icons";
 import { toast } from "sonner";
 import { useEffect } from "react";
 
+const PRIMARY_AUTH_ORIGIN = "https://structnovadesigns.com";
+const APPROVED_AUTH_ORIGINS = new Set([
+  PRIMARY_AUTH_ORIGIN,
+  "https://structnova.nelsononuemmanuel.workers.dev",
+  "https://nova-designs.lovable.app",
+]);
+
+function getAuthRedirectUrl(path = "/") {
+  if (typeof window === "undefined") return `${PRIMARY_AUTH_ORIGIN}${path}`;
+
+  const origin = window.location.origin;
+  const isLocal = origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1");
+  const isLovablePreview = origin.endsWith(".lovable.app");
+  const approvedOrigin = APPROVED_AUTH_ORIGINS.has(origin) || isLocal || isLovablePreview ? origin : PRIMARY_AUTH_ORIGIN;
+
+  return `${approvedOrigin}${path}`;
+}
+
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Sign in — StructNova Designs" }] }),
   component: AuthPage,
@@ -35,7 +53,7 @@ function AuthPage() {
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
           email, password,
-          options: { emailRedirectTo: window.location.origin, data: { full_name: name } },
+          options: { emailRedirectTo: getAuthRedirectUrl(), data: { full_name: name } },
         });
         if (error) throw error;
         toast.success("Check your email to confirm your account.");
@@ -45,7 +63,7 @@ function AuthPage() {
         toast.success("Welcome back!");
         navigate({ to: "/" });
       } else {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: getAuthRedirectUrl("/reset-password") });
         if (error) throw error;
         toast.success("Password reset link sent.");
       }
@@ -61,7 +79,7 @@ function AuthPage() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin },
+        options: { redirectTo: getAuthRedirectUrl() },
       });
       if (error) throw error;
       // Browser will redirect to Google
