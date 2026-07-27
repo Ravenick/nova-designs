@@ -60,13 +60,12 @@ function AuthPage() {
   const onGoogle = async () => {
     setLoading(true);
     try {
-      const result = (await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })) as { error?: { message?: string } | string; redirected?: boolean };
-      if (result.error) {
-        const msg = typeof result.error === "string" ? result.error : result.error.message ?? "Sign-in failed";
-        throw new Error(msg);
-      }
-      if (result.redirected) return;
-      navigate({ to: "/" });
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin },
+      });
+      if (error) throw error;
+      // Browser will redirect to Google
     } catch (err) {
       toast.error((err as Error).message);
       setLoading(false);
