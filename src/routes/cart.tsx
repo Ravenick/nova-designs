@@ -5,7 +5,8 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { usd } from "@/lib/format";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTrash, faArrowRight, faFilePdf, faFileCode, faDraftingCompass, faCartShopping } from "@fortawesome/free-solid-svg-icons";
+import { faTrash, faArrowRight, faFilePdf, faFileCode, faCartShopping } from "@fortawesome/free-solid-svg-icons";
+import { DRAWING_SET_LABELS } from "@/types/plan";
 
 export const Route = createFileRoute("/cart")({
   head: () => ({ meta: [{ title: "Your cart — StructNova Designs" }] }),
