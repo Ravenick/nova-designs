@@ -336,18 +336,46 @@ function PlansAdmin() {
 
 const SIGNED_URL_TTL = 60 * 60 * 24 * 365 * 10; // ~10 years
 
-async function uploadAndGetUrl(bucket: string, file: File): Promise<string> {
+async function uploadImageAndGetUrl(file: File): Promise<string> {
   const ext = file.name.split(".").pop() ?? "bin";
   const path = `${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: false, contentType: file.type });
+  const { error } = await supabase.storage.from("plan-images").upload(path, file, { upsert: false, contentType: file.type });
   if (error) throw error;
-  const { data, error: sErr } = await supabase.storage.from(bucket).createSignedUrl(path, SIGNED_URL_TTL);
+  const { data, error: sErr } = await supabase.storage.from("plan-images").createSignedUrl(path, SIGNED_URL_TTL);
   if (sErr) throw sErr;
   return data.signedUrl;
 }
 
+async function uploadZipToPlanFiles(file: File, planNumber: string, setType: string, kind: "pdf" | "cad"): Promise<string> {
+  if (!/\.zip$/i.test(file.name)) throw new Error("Only .zip files are accepted.");
+  const path = `${planNumber || "draft"}/${setType}/${kind}-${crypto.randomUUID()}.zip`;
+  const { error } = await supabase.storage.from("plan-files").upload(path, file, { upsert: true, contentType: "application/zip" });
+  if (error) throw error;
+  return path;
+}
+
+const DRAW_SETS = [
+  { id: "architectural", label: "Architectural" },
+  { id: "structural", label: "Structural" },
+  { id: "mechanical", label: "Mechanical" },
+  { id: "electrical", label: "Electrical" },
+] as const;
+
+type SetKey = typeof DRAW_SETS[number]["id"];
+
+type SetForm = {
+  enabled: boolean;
+  pdf_price: number;
+  cad_price: number;
+  pdf_zip_path: string | null;
+  cad_zip_path: string | null;
+};
+
+const emptySetForm = (): SetForm => ({ enabled: false, pdf_price: 0, cad_price: 0, pdf_zip_path: null, cad_zip_path: null });
+
 function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose: () => void; onSaved: () => void }) {
   const isNew = !plan;
+  const [step, setStep] = useState(1);
   const [form, setForm] = useState<Plan>(
     plan ?? {
       id: "",
@@ -375,15 +403,44 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
       cad_file_path: null,
     }
   );
+  const [setsForm, setSetsForm] = useState<Record<SetKey, SetForm>>({
+    architectural: emptySetForm(),
+    structural: emptySetForm(),
+    mechanical: emptySetForm(),
+    electrical: emptySetForm(),
+  });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
 
+  // Load existing drawing sets when editing
+  useEffect(() => {
+    if (!plan?.id) return;
+    (async () => {
+      const { data } = await supabase.from("plan_drawing_sets").select("*").eq("plan_id", plan.id);
+      if (!data) return;
+      setSetsForm((prev) => {
+        const next = { ...prev };
+        for (const row of data as Array<{ set_type: SetKey; pdf_price: number; cad_price: number; pdf_zip_path: string | null; cad_zip_path: string | null }>) {
+          next[row.set_type] = {
+            enabled: true,
+            pdf_price: Number(row.pdf_price),
+            cad_price: Number(row.cad_price),
+            pdf_zip_path: row.pdf_zip_path,
+            cad_zip_path: row.cad_zip_path,
+          };
+        }
+        return next;
+      });
+    })();
+  }, [plan?.id]);
+
   const set = <K extends keyof Plan>(k: K, v: Plan[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const setSet = (k: SetKey, patch: Partial<SetForm>) => setSetsForm((s) => ({ ...s, [k]: { ...s[k], ...patch } }));
 
   const onImageChange = async (file: File) => {
     setUploading("image");
     try {
-      const url = await uploadAndGetUrl("plan-images", file);
+      const url = await uploadImageAndGetUrl(file);
       set("image_url", url);
       toast.success("Cover image uploaded");
     } catch (e) { toast.error((e as Error).message); }
@@ -394,43 +451,89 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
     setUploading("gallery");
     try {
       const urls: string[] = [];
-      for (const f of Array.from(files)) urls.push(await uploadAndGetUrl("plan-images", f));
-      set("gallery", [...(form.gallery ?? []), ...urls]);
+      for (const f of Array.from(files)) {
+        if (!/\.(jpe?g|png|webp)$/i.test(f.name)) throw new Error("Only JPG, JPEG, PNG or WebP images are accepted.");
+        urls.push(await uploadImageAndGetUrl(f));
+      }
+      const merged = [...(form.gallery ?? []), ...urls];
+      set("gallery", merged);
+      if (!form.image_url && merged.length) set("image_url", merged[0]);
       toast.success(`${urls.length} image(s) added`);
     } catch (e) { toast.error((e as Error).message); }
     finally { setUploading(null); }
   };
 
-  const onFileUpload = async (file: File, kind: "pdf" | "cad") => {
-    setUploading(kind);
+  const onSetZip = async (k: SetKey, kind: "pdf" | "cad", file: File) => {
+    setUploading(`${k}-${kind}`);
     try {
-      const ext = file.name.split(".").pop() ?? "bin";
-      const path = `${form.plan_number || "draft"}/${kind}-${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("plan-files").upload(path, file, { upsert: true, contentType: file.type });
-      if (error) throw error;
-      if (kind === "pdf") set("pdf_file_path", path);
-      else set("cad_file_path", path);
-      toast.success(`${kind.toUpperCase()} file uploaded`);
+      const path = await uploadZipToPlanFiles(file, form.plan_number, k, kind);
+      setSet(k, kind === "pdf" ? { pdf_zip_path: path } : { cad_zip_path: path });
+      toast.success(`${kind.toUpperCase()} ZIP uploaded`);
     } catch (e) { toast.error((e as Error).message); }
     finally { setUploading(null); }
   };
 
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateStep = (): string | null => {
+    if (step === 1) {
+      if (!form.plan_number.trim()) return "Plan number is required.";
+      if (!form.name.trim()) return "Plan name is required.";
+    }
+    if (step === 2) {
+      const anyEnabled = Object.values(setsForm).some((s) => s.enabled);
+      if (!anyEnabled) return "Select at least one drawing set.";
+    }
+    return null;
+  };
+
+  const next = () => {
+    const err = validateStep();
+    if (err) return toast.error(err);
+    setStep((s) => Math.min(4, s + 1));
+  };
+  const back = () => setStep((s) => Math.max(1, s - 1));
+
+  const save = async () => {
     setSaving(true);
     try {
       const payload = { ...form };
+      let planId = plan?.id;
       if (isNew) {
         const { id: _drop, ...rest } = payload;
-        const { error } = await supabase.from("plans").insert(rest as unknown as Plan);
+        const { data, error } = await supabase.from("plans").insert(rest as unknown as Plan).select("id").single();
         if (error) throw error;
-        toast.success("Plan created");
+        planId = data.id;
       } else {
         const { id, ...rest } = payload;
         const { error } = await supabase.from("plans").update(rest).eq("id", id);
         if (error) throw error;
-        toast.success("Plan updated");
       }
+      if (!planId) throw new Error("Plan id missing.");
+
+      // Upsert drawing sets: for each enabled -> upsert row; for each disabled -> delete row
+      const enabledEntries = (Object.entries(setsForm) as [SetKey, SetForm][]).filter(([, v]) => v.enabled);
+      const disabledEntries = (Object.entries(setsForm) as [SetKey, SetForm][]).filter(([, v]) => !v.enabled);
+
+      if (enabledEntries.length > 0) {
+        const rows = enabledEntries.map(([k, v]) => ({
+          plan_id: planId!,
+          set_type: k,
+          pdf_price: v.pdf_price,
+          cad_price: v.cad_price,
+          pdf_zip_path: v.pdf_zip_path,
+          cad_zip_path: v.cad_zip_path,
+        }));
+        const { error } = await supabase.from("plan_drawing_sets").upsert(rows, { onConflict: "plan_id,set_type" });
+        if (error) throw error;
+      }
+      if (disabledEntries.length > 0 && !isNew) {
+        await supabase
+          .from("plan_drawing_sets")
+          .delete()
+          .eq("plan_id", planId)
+          .in("set_type", disabledEntries.map(([k]) => k));
+      }
+
+      toast.success(isNew ? "Plan created" : "Plan updated");
       onSaved();
     } catch (err) {
       toast.error((err as Error).message);
@@ -439,126 +542,210 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
     }
   };
 
+  const stepLabels = ["Basic info", "Drawing sets", "Files", "Images"];
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
       <div className="my-8 w-full max-w-3xl rounded-3xl bg-card shadow-card">
         <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-3xl border-b border-border bg-card px-6 py-4">
-          <h2 className="text-xl font-extrabold">{isNew ? "New plan" : `Edit · ${form.name}`}</h2>
+          <div>
+            <h2 className="text-xl font-extrabold">{isNew ? "New plan" : `Edit · ${form.name}`}</h2>
+            <div className="mt-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider">
+              {stepLabels.map((l, i) => {
+                const active = step === i + 1;
+                const done = step > i + 1;
+                return (
+                  <div key={l} className={`flex items-center gap-1 ${active ? "text-primary" : done ? "text-emerald-600" : "text-muted-foreground"}`}>
+                    <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${active ? "bg-primary text-primary-foreground" : done ? "bg-emerald-600 text-white" : "bg-secondary"}`}>{i + 1}</span>
+                    <span className="hidden sm:inline">{l}</span>
+                    {i < stepLabels.length - 1 && <span className="mx-1 h-px w-4 bg-border" />}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
           <button onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary hover:bg-accent">
             <FontAwesomeIcon icon={faXmark} />
           </button>
         </div>
 
-        <form onSubmit={save} className="space-y-6 p-6">
-          {/* Cover */}
-          <section>
-            <SectionTitle>Cover image</SectionTitle>
-            <div className="mt-3 flex items-start gap-4">
-              <div className="flex h-32 w-44 items-center justify-center overflow-hidden rounded-xl border border-border bg-secondary">
-                {form.image_url ? <img src={form.image_url} alt="" className="h-full w-full object-cover" /> : <FontAwesomeIcon icon={faImage} className="text-2xl text-muted-foreground" />}
-              </div>
-              <UploadButton label={uploading === "image" ? "Uploading…" : "Upload cover"} accept="image/*" onFile={onImageChange} disabled={!!uploading} />
-            </div>
-          </section>
-
-          {/* Basics */}
-          <section>
-            <SectionTitle>Basic info</SectionTitle>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label="Plan #" value={form.plan_number} onChange={(v) => set("plan_number", v)} required />
-              <Field label="Name" value={form.name} onChange={(v) => set("name", v)} required />
-              <Field label="Style" value={form.style ?? ""} onChange={(v) => set("style", v)} />
-              <label className="flex items-center gap-2 pt-7 text-sm font-semibold">
-                <input type="checkbox" checked={form.featured} onChange={(e) => set("featured", e.target.checked)} />
-                Featured on homepage
-              </label>
-              <div className="sm:col-span-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</label>
-                <textarea
-                  value={form.description ?? ""}
-                  onChange={(e) => set("description", e.target.value)}
-                  rows={4}
-                  className="mt-1 w-full rounded-xl border border-border bg-background p-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Pricing */}
-          <section>
-            <SectionTitle>Pricing (USD)</SectionTitle>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <NumField label="Base price" value={form.base_price} onChange={(v) => set("base_price", v)} step={0.01} />
-              <NumField label="Architectural add-on" value={form.architectural_addon_price} onChange={(v) => set("architectural_addon_price", v)} step={0.01} />
-              <NumField label="CAD add-on" value={form.cad_addon_price} onChange={(v) => set("cad_addon_price", v)} step={0.01} />
-            </div>
-          </section>
-
-          {/* Specs */}
-          <section>
-            <SectionTitle>Specs</SectionTitle>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <NumField label="Sq ft" value={form.sqft} onChange={(v) => set("sqft", v)} />
-              <NumField label="Beds" value={form.beds} onChange={(v) => set("beds", v)} />
-              <NumField label="Baths" value={form.baths} onChange={(v) => set("baths", v)} />
-              <NumField label="Half baths" value={form.half_baths} onChange={(v) => set("half_baths", v)} />
-              <NumField label="Cars" value={form.cars} onChange={(v) => set("cars", v)} />
-              <NumField label="Stories" value={form.stories} onChange={(v) => set("stories", v)} />
-              <NumField label="Width (ft)" value={form.width_ft} onChange={(v) => set("width_ft", v)} />
-              <NumField label="Width (in)" value={form.width_in} onChange={(v) => set("width_in", v)} />
-              <NumField label="Depth (ft)" value={form.depth_ft} onChange={(v) => set("depth_ft", v)} />
-              <NumField label="Depth (in)" value={form.depth_in} onChange={(v) => set("depth_in", v)} />
-            </div>
-          </section>
-
-          {/* Gallery */}
-          <section>
-            <SectionTitle>Gallery</SectionTitle>
-            <div className="mt-3 flex flex-wrap gap-3">
-              {(form.gallery ?? []).map((url, i) => (
-                <div key={i} className="relative h-24 w-32 overflow-hidden rounded-xl border border-border">
-                  <img src={url} alt="" className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => set("gallery", (form.gallery ?? []).filter((_, j) => j !== i))}
-                    className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black"
-                    aria-label="Remove"
-                  >
-                    <FontAwesomeIcon icon={faXmark} />
-                  </button>
+        <div className="space-y-6 p-6">
+          {step === 1 && (
+            <>
+              <section>
+                <SectionTitle>Basic info</SectionTitle>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <Field label="Plan #" value={form.plan_number} onChange={(v) => set("plan_number", v)} required />
+                  <Field label="Name" value={form.name} onChange={(v) => set("name", v)} required />
+                  <Field label="Style" value={form.style ?? ""} onChange={(v) => set("style", v)} />
+                  <label className="flex items-center gap-2 pt-7 text-sm font-semibold">
+                    <input type="checkbox" checked={form.featured} onChange={(e) => set("featured", e.target.checked)} />
+                    Featured on homepage
+                  </label>
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</label>
+                    <textarea
+                      value={form.description ?? ""}
+                      onChange={(e) => set("description", e.target.value)}
+                      rows={4}
+                      className="mt-1 w-full rounded-xl border border-border bg-background p-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
                 </div>
-              ))}
-              <label className={`flex h-24 w-32 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border text-xs text-muted-foreground hover:border-primary hover:text-primary ${uploading === "gallery" ? "opacity-50" : ""}`}>
-                <FontAwesomeIcon icon={faUpload} />
-                {uploading === "gallery" ? "Uploading…" : "Add images"}
-                <input type="file" multiple accept="image/*" className="hidden" onChange={(e) => e.target.files && onGalleryAdd(e.target.files)} />
-              </label>
-            </div>
-          </section>
+              </section>
+              <section>
+                <SectionTitle>Specs</SectionTitle>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <NumField label="Sq ft" value={form.sqft} onChange={(v) => set("sqft", v)} />
+                  <NumField label="Beds" value={form.beds} onChange={(v) => set("beds", v)} />
+                  <NumField label="Baths" value={form.baths} onChange={(v) => set("baths", v)} />
+                  <NumField label="Half baths" value={form.half_baths} onChange={(v) => set("half_baths", v)} />
+                  <NumField label="Cars" value={form.cars} onChange={(v) => set("cars", v)} />
+                  <NumField label="Stories" value={form.stories} onChange={(v) => set("stories", v)} />
+                  <NumField label="Width (ft)" value={form.width_ft} onChange={(v) => set("width_ft", v)} />
+                  <NumField label="Width (in)" value={form.width_in} onChange={(v) => set("width_in", v)} />
+                  <NumField label="Depth (ft)" value={form.depth_ft} onChange={(v) => set("depth_ft", v)} />
+                  <NumField label="Depth (in)" value={form.depth_in} onChange={(v) => set("depth_in", v)} />
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">Overall pricing is set per drawing set on the next step.</p>
+              </section>
+            </>
+          )}
 
-          {/* Plan files */}
-          <section>
-            <SectionTitle>Plan files (PDF / CAD)</SectionTitle>
-            <p className="mt-1 text-xs text-muted-foreground">Stored privately. Delivered to customers via secure download after purchase.</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <UploadButton label={uploading === "pdf" ? "Uploading PDF…" : "Upload PDF plan"} accept="application/pdf" onFile={(f) => onFileUpload(f, "pdf")} disabled={!!uploading} icon={faFile} />
-              <UploadButton label={uploading === "cad" ? "Uploading CAD…" : "Upload CAD file"} accept=".dwg,.dxf,application/octet-stream,application/zip,.zip" onFile={(f) => onFileUpload(f, "cad")} disabled={!!uploading} icon={faFile} />
-            </div>
-          </section>
+          {step === 2 && (
+            <section>
+              <SectionTitle>Drawing sets & pricing</SectionTitle>
+              <p className="mt-1 text-xs text-muted-foreground">Enable the sets available for this plan. Set the PDF-only and PDF + CAD price for each.</p>
+              <div className="mt-3 space-y-3">
+                {DRAW_SETS.map(({ id, label }) => {
+                  const s = setsForm[id];
+                  return (
+                    <div key={id} className={`rounded-xl border-2 p-4 ${s.enabled ? "border-primary bg-primary/5" : "border-border"}`}>
+                      <label className="flex items-center gap-3 text-sm font-semibold">
+                        <input type="checkbox" checked={s.enabled} onChange={(e) => setSet(id, { enabled: e.target.checked })} />
+                        {label}
+                      </label>
+                      {s.enabled && (
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <NumField label="PDF price (USD)" value={s.pdf_price} onChange={(v) => setSet(id, { pdf_price: v })} step={0.01} />
+                          <NumField label="PDF + CAD price (USD)" value={s.cad_price} onChange={(v) => setSet(id, { cad_price: v })} step={0.01} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
-          <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
+          {step === 3 && (
+            <section>
+              <SectionTitle>Upload ZIP files</SectionTitle>
+              <p className="mt-1 text-xs text-muted-foreground">Only .zip files are accepted. Upload one ZIP for PDF and one for CAD per enabled set.</p>
+              <div className="mt-3 space-y-4">
+                {DRAW_SETS.filter(({ id }) => setsForm[id].enabled).length === 0 && (
+                  <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                    No drawing sets selected. Go back to step 2 to enable at least one.
+                  </div>
+                )}
+                {DRAW_SETS.filter(({ id }) => setsForm[id].enabled).map(({ id, label }) => {
+                  const s = setsForm[id];
+                  return (
+                    <div key={id} className="rounded-xl border border-border p-4">
+                      <div className="text-sm font-bold">{label}</div>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <UploadButton
+                            label={uploading === `${id}-pdf` ? "Uploading PDF ZIP…" : s.pdf_zip_path ? "Replace PDF ZIP" : "Upload PDF ZIP"}
+                            accept=".zip,application/zip,application/x-zip-compressed"
+                            onFile={(f) => onSetZip(id, "pdf", f)}
+                            disabled={!!uploading}
+                            icon={faFile}
+                          />
+                          {s.pdf_zip_path && <div className="mt-1 truncate text-[11px] text-emerald-600">✓ {s.pdf_zip_path.split("/").pop()}</div>}
+                        </div>
+                        <div>
+                          <UploadButton
+                            label={uploading === `${id}-cad` ? "Uploading CAD ZIP…" : s.cad_zip_path ? "Replace CAD ZIP" : "Upload CAD ZIP"}
+                            accept=".zip,application/zip,application/x-zip-compressed"
+                            onFile={(f) => onSetZip(id, "cad", f)}
+                            disabled={!!uploading}
+                            icon={faFile}
+                          />
+                          {s.cad_zip_path && <div className="mt-1 truncate text-[11px] text-emerald-600">✓ {s.cad_zip_path.split("/").pop()}</div>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {step === 4 && (
+            <section>
+              <SectionTitle>Preview images (slideshow)</SectionTitle>
+              <p className="mt-1 text-xs text-muted-foreground">JPG, JPEG, PNG or WebP. Multiple images populate the plan modal slideshow. First image becomes the cover.</p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {(form.gallery ?? []).map((url, i) => (
+                  <div key={i} className="relative h-24 w-32 overflow-hidden rounded-xl border border-border">
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                    {i === 0 && <div className="absolute left-1 top-1 rounded-full bg-primary px-2 py-0.5 text-[9px] font-bold uppercase text-primary-foreground">Cover</div>}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = (form.gallery ?? []).filter((_, j) => j !== i);
+                        set("gallery", next);
+                        if (form.image_url === url) set("image_url", next[0] ?? null);
+                      }}
+                      className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black"
+                      aria-label="Remove"
+                    >
+                      <FontAwesomeIcon icon={faXmark} />
+                    </button>
+                  </div>
+                ))}
+                <label className={`flex h-24 w-32 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border text-xs text-muted-foreground hover:border-primary hover:text-primary ${uploading === "gallery" ? "opacity-50" : ""}`}>
+                  <FontAwesomeIcon icon={faUpload} />
+                  {uploading === "gallery" ? "Uploading…" : "Add images"}
+                  <input type="file" multiple accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => e.target.files && onGalleryAdd(e.target.files)} />
+                </label>
+              </div>
+            </section>
+          )}
+
+          <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
             <button type="button" onClick={onClose} className="rounded-full px-4 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
               Cancel
             </button>
-            <button disabled={saving || !!uploading} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-card hover:bg-primary-dark disabled:opacity-60">
-              {saving ? "Saving…" : isNew ? "Create plan" : "Save changes"}
-            </button>
+            <div className="flex gap-2">
+              {step > 1 && (
+                <button type="button" onClick={back} className="rounded-full bg-secondary px-4 py-2 text-sm font-semibold hover:bg-accent">
+                  Back
+                </button>
+              )}
+              {step < 4 ? (
+                <button type="button" onClick={next} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-card hover:bg-primary-dark">
+                  Next
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={save}
+                  disabled={saving || !!uploading}
+                  className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-card hover:bg-primary-dark disabled:opacity-60"
+                >
+                  {saving ? "Saving…" : isNew ? "Create plan" : "Save changes"}
+                </button>
+              )}
+            </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
 }
+
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-primary">{children}</h3>;

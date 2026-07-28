@@ -47,6 +47,7 @@ function Checkout() {
       const orderItems = items.map((i) => ({
         order_id: order.id,
         plan_id: i.plan_id,
+        set_type: i.set_type,
         file_type: i.file_type,
         include_architectural: i.include_architectural,
         unit_price: i.unit_price,
@@ -55,6 +56,7 @@ function Checkout() {
         user_id: user.id,
         order_id: order.id,
         plan_id: i.plan_id,
+        set_type: i.set_type,
         file_type: i.file_type,
         include_architectural: i.include_architectural,
       }));
