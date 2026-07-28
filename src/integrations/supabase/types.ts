@@ -21,6 +21,7 @@ export type Database = {
           id: string
           include_architectural: boolean
           plan_id: string
+          set_type: Database["public"]["Enums"]["drawing_set_type"] | null
           unit_price: number
           user_id: string
         }
@@ -30,6 +31,7 @@ export type Database = {
           id?: string
           include_architectural?: boolean
           plan_id: string
+          set_type?: Database["public"]["Enums"]["drawing_set_type"] | null
           unit_price: number
           user_id: string
         }
@@ -39,6 +41,7 @@ export type Database = {
           id?: string
           include_architectural?: boolean
           plan_id?: string
+          set_type?: Database["public"]["Enums"]["drawing_set_type"] | null
           unit_price?: number
           user_id?: string
         }
@@ -62,6 +65,7 @@ export type Database = {
           include_architectural: boolean
           order_id: string | null
           plan_id: string
+          set_type: Database["public"]["Enums"]["drawing_set_type"] | null
           user_id: string
         }
         Insert: {
@@ -73,6 +77,7 @@ export type Database = {
           include_architectural?: boolean
           order_id?: string | null
           plan_id: string
+          set_type?: Database["public"]["Enums"]["drawing_set_type"] | null
           user_id: string
         }
         Update: {
@@ -84,6 +89,7 @@ export type Database = {
           include_architectural?: boolean
           order_id?: string | null
           plan_id?: string
+          set_type?: Database["public"]["Enums"]["drawing_set_type"] | null
           user_id?: string
         }
         Relationships: [
@@ -131,6 +137,7 @@ export type Database = {
           include_architectural: boolean
           order_id: string
           plan_id: string
+          set_type: Database["public"]["Enums"]["drawing_set_type"] | null
           unit_price: number
         }
         Insert: {
@@ -139,6 +146,7 @@ export type Database = {
           include_architectural?: boolean
           order_id: string
           plan_id: string
+          set_type?: Database["public"]["Enums"]["drawing_set_type"] | null
           unit_price: number
         }
         Update: {
@@ -147,6 +155,7 @@ export type Database = {
           include_architectural?: boolean
           order_id?: string
           plan_id?: string
+          set_type?: Database["public"]["Enums"]["drawing_set_type"] | null
           unit_price?: number
         }
         Relationships: [
@@ -192,6 +201,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      plan_drawing_sets: {
+        Row: {
+          cad_price: number
+          cad_zip_path: string | null
+          created_at: string
+          id: string
+          pdf_price: number
+          pdf_zip_path: string | null
+          plan_id: string
+          set_type: Database["public"]["Enums"]["drawing_set_type"]
+          updated_at: string
+        }
+        Insert: {
+          cad_price?: number
+          cad_zip_path?: string | null
+          created_at?: string
+          id?: string
+          pdf_price?: number
+          pdf_zip_path?: string | null
+          plan_id: string
+          set_type: Database["public"]["Enums"]["drawing_set_type"]
+          updated_at?: string
+        }
+        Update: {
+          cad_price?: number
+          cad_zip_path?: string | null
+          created_at?: string
+          id?: string
+          pdf_price?: number
+          pdf_zip_path?: string | null
+          plan_id?: string
+          set_type?: Database["public"]["Enums"]["drawing_set_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_drawing_sets_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       plans: {
         Row: {
@@ -337,6 +390,11 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      drawing_set_type:
+        | "architectural"
+        | "structural"
+        | "mechanical"
+        | "electrical"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -465,6 +523,12 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      drawing_set_type: [
+        "architectural",
+        "structural",
+        "mechanical",
+        "electrical",
+      ],
     },
   },
 } as const
