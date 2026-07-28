@@ -498,12 +498,12 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
       const payload = { ...form };
       let planId = plan?.id;
       if (isNew) {
-        const { id: _drop, drawing_sets: _ds, ...rest } = payload;
+        const { id: _drop, ...rest } = payload;
         const { data, error } = await supabase.from("plans").insert(rest as unknown as Plan).select("id").single();
         if (error) throw error;
         planId = data.id;
       } else {
-        const { id, drawing_sets: _ds, ...rest } = payload;
+        const { id, ...rest } = payload;
         const { error } = await supabase.from("plans").update(rest).eq("id", id);
         if (error) throw error;
       }
