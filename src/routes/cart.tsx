@@ -46,11 +46,11 @@ function CartPage() {
                     <div className="text-base font-bold">{it.plan.name}</div>
                     <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5">
-                        <FontAwesomeIcon icon={it.file_type === "cad_pdf" ? faFileCode : faFilePdf} /> {it.file_type === "cad_pdf" ? "CAD + PDF" : "PDF Only"}
+                        <FontAwesomeIcon icon={it.file_type === "cad_pdf" ? faFileCode : faFilePdf} /> {it.file_type === "cad_pdf" ? "PDF + CAD" : "PDF"}
                       </span>
-                      {it.include_architectural && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5">
-                          <FontAwesomeIcon icon={faDraftingCompass} /> Architectural Set
+                      {it.set_type && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">
+                          {DRAWING_SET_LABELS[it.set_type]}
                         </span>
                       )}
                     </div>
