@@ -346,12 +346,35 @@ async function uploadImageAndGetUrl(file: File): Promise<string> {
   return data.signedUrl;
 }
 
-async function uploadZipToPlanFiles(file: File, planNumber: string, setType: string, kind: "pdf" | "cad"): Promise<string> {
-  if (!/\.zip$/i.test(file.name)) throw new Error("Only .zip files are accepted.");
-  const path = `${planNumber || "draft"}/${setType}/${kind}-${crypto.randomUUID()}.zip`;
-  const { error } = await supabase.storage.from("plan-files").upload(path, file, { upsert: true, contentType: "application/zip" });
-  if (error) throw error;
-  return path;
+/**
+ * Upload a whole folder (webkitdirectory) into plan-files, preserving the
+ * internal folder structure. Returns the storage prefix for the upload.
+ */
+async function uploadFolderToPlanFiles(
+  files: File[],
+  planNumber: string,
+  setType: string,
+  kind: "pdf" | "cad",
+  onProgress?: (done: number, total: number) => void
+): Promise<string> {
+  const usable = files.filter((f) => f.size > 0 && !/(^|\/)\.DS_Store$/i.test(f.name));
+  if (usable.length === 0) throw new Error("That folder is empty.");
+  const prefix = `${planNumber || "draft"}/${setType}/${kind}-${crypto.randomUUID()}`;
+
+  let done = 0;
+  for (const f of usable) {
+    const rel = ((f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name)
+      .split("/")
+      .slice(1) // drop the selected root folder name
+      .join("/") || f.name;
+    const { error } = await supabase.storage
+      .from("plan-files")
+      .upload(`${prefix}/${rel}`, f, { upsert: true, contentType: f.type || "application/octet-stream" });
+    if (error) throw error;
+    done++;
+    onProgress?.(done, usable.length);
+  }
+  return prefix;
 }
 
 const DRAW_SETS = [
@@ -367,11 +390,11 @@ type SetForm = {
   enabled: boolean;
   pdf_price: number;
   cad_price: number;
-  pdf_zip_path: string | null;
-  cad_zip_path: string | null;
+  pdf_folder_path: string | null;
+  cad_folder_path: string | null;
 };
 
-const emptySetForm = (): SetForm => ({ enabled: false, pdf_price: 0, cad_price: 0, pdf_zip_path: null, cad_zip_path: null });
+const emptySetForm = (): SetForm => ({ enabled: false, pdf_price: 0, cad_price: 0, pdf_folder_path: null, cad_folder_path: null });
 
 function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose: () => void; onSaved: () => void }) {
   const isNew = !plan;
