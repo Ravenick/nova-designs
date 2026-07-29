@@ -18,6 +18,7 @@ import {
   faMagnifyingGlass,
   faImage,
   faFile,
+  faFolderOpen,
 } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "sonner";
 import { usd } from "@/lib/format";
@@ -114,7 +115,7 @@ function Overview() {
   useEffect(() => {
     (async () => {
       const [{ data: orders }, { count: plansCount }, { count: dlCount }, { count: profilesCount }] = await Promise.all([
-        supabase.from("orders").select("id,total,created_at,status,user_id").eq("status", "paid").order("created_at", { ascending: false }),
+        supabase.from("orders").select("id,total,created_at,status,user_id").in("status", ["paid", "completed"]).order("created_at", { ascending: false }),
         supabase.from("plans").select("*", { count: "exact", head: true }),
         supabase.from("downloads").select("*", { count: "exact", head: true }),
         supabase.from("profiles").select("*", { count: "exact", head: true }),
@@ -346,12 +347,35 @@ async function uploadImageAndGetUrl(file: File): Promise<string> {
   return data.signedUrl;
 }
 
-async function uploadZipToPlanFiles(file: File, planNumber: string, setType: string, kind: "pdf" | "cad"): Promise<string> {
-  if (!/\.zip$/i.test(file.name)) throw new Error("Only .zip files are accepted.");
-  const path = `${planNumber || "draft"}/${setType}/${kind}-${crypto.randomUUID()}.zip`;
-  const { error } = await supabase.storage.from("plan-files").upload(path, file, { upsert: true, contentType: "application/zip" });
-  if (error) throw error;
-  return path;
+/**
+ * Upload a whole folder (webkitdirectory) into plan-files, preserving the
+ * internal folder structure. Returns the storage prefix for the upload.
+ */
+async function uploadFolderToPlanFiles(
+  files: File[],
+  planNumber: string,
+  setType: string,
+  kind: "pdf" | "cad",
+  onProgress?: (done: number, total: number) => void
+): Promise<string> {
+  const usable = files.filter((f) => f.size > 0 && !/(^|\/)\.DS_Store$/i.test(f.name));
+  if (usable.length === 0) throw new Error("That folder is empty.");
+  const prefix = `${planNumber || "draft"}/${setType}/${kind}-${crypto.randomUUID()}`;
+
+  let done = 0;
+  for (const f of usable) {
+    const rel = ((f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name)
+      .split("/")
+      .slice(1) // drop the selected root folder name
+      .join("/") || f.name;
+    const { error } = await supabase.storage
+      .from("plan-files")
+      .upload(`${prefix}/${rel}`, f, { upsert: true, contentType: f.type || "application/octet-stream" });
+    if (error) throw error;
+    done++;
+    onProgress?.(done, usable.length);
+  }
+  return prefix;
 }
 
 const DRAW_SETS = [
@@ -367,11 +391,11 @@ type SetForm = {
   enabled: boolean;
   pdf_price: number;
   cad_price: number;
-  pdf_zip_path: string | null;
-  cad_zip_path: string | null;
+  pdf_folder_path: string | null;
+  cad_folder_path: string | null;
 };
 
-const emptySetForm = (): SetForm => ({ enabled: false, pdf_price: 0, cad_price: 0, pdf_zip_path: null, cad_zip_path: null });
+const emptySetForm = (): SetForm => ({ enabled: false, pdf_price: 0, cad_price: 0, pdf_folder_path: null, cad_folder_path: null });
 
 function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose: () => void; onSaved: () => void }) {
   const isNew = !plan;
@@ -420,13 +444,13 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
       if (!data) return;
       setSetsForm((prev) => {
         const next = { ...prev };
-        for (const row of data as Array<{ set_type: SetKey; pdf_price: number; cad_price: number; pdf_zip_path: string | null; cad_zip_path: string | null }>) {
+        for (const row of data as Array<{ set_type: SetKey; pdf_price: number; cad_price: number; pdf_folder_path: string | null; cad_folder_path: string | null }>) {
           next[row.set_type] = {
             enabled: true,
             pdf_price: Number(row.pdf_price),
             cad_price: Number(row.cad_price),
-            pdf_zip_path: row.pdf_zip_path,
-            cad_zip_path: row.cad_zip_path,
+            pdf_folder_path: row.pdf_folder_path,
+            cad_folder_path: row.cad_folder_path,
           };
         }
         return next;
@@ -463,12 +487,15 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
     finally { setUploading(null); }
   };
 
-  const onSetZip = async (k: SetKey, kind: "pdf" | "cad", file: File) => {
+  const onSetFolder = async (k: SetKey, kind: "pdf" | "cad", files: FileList) => {
     setUploading(`${k}-${kind}`);
     try {
-      const path = await uploadZipToPlanFiles(file, form.plan_number, k, kind);
-      setSet(k, kind === "pdf" ? { pdf_zip_path: path } : { cad_zip_path: path });
-      toast.success(`${kind.toUpperCase()} ZIP uploaded`);
+      const list = Array.from(files);
+      const path = await uploadFolderToPlanFiles(list, form.plan_number, k, kind, (done, total) =>
+        setUploading(`${k}-${kind}|${done}/${total}`)
+      );
+      setSet(k, kind === "pdf" ? { pdf_folder_path: path } : { cad_folder_path: path });
+      toast.success(`${kind.toUpperCase()} folder uploaded (${list.length} file(s))`);
     } catch (e) { toast.error((e as Error).message); }
     finally { setUploading(null); }
   };
@@ -519,8 +546,8 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
           set_type: k,
           pdf_price: v.pdf_price,
           cad_price: v.cad_price,
-          pdf_zip_path: v.pdf_zip_path,
-          cad_zip_path: v.cad_zip_path,
+          pdf_folder_path: v.pdf_folder_path,
+          cad_folder_path: v.cad_folder_path,
         }));
         const { error } = await supabase.from("plan_drawing_sets").upsert(rows, { onConflict: "plan_id,set_type" });
         if (error) throw error;
@@ -640,8 +667,11 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
 
           {step === 3 && (
             <section>
-              <SectionTitle>Upload ZIP files</SectionTitle>
-              <p className="mt-1 text-xs text-muted-foreground">Only .zip files are accepted. Upload one ZIP for PDF and one for CAD per enabled set.</p>
+              <SectionTitle>Upload drawing folders</SectionTitle>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Select a <strong>folder</strong> for PDF and a folder for CAD per enabled set. The folder contents are delivered to
+                customers inside a single ZIP named after the house plan.
+              </p>
               <div className="mt-3 space-y-4">
                 {DRAW_SETS.filter(({ id }) => setsForm[id].enabled).length === 0 && (
                   <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
@@ -650,29 +680,28 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
                 )}
                 {DRAW_SETS.filter(({ id }) => setsForm[id].enabled).map(({ id, label }) => {
                   const s = setsForm[id];
+                  const busyPdf = uploading?.startsWith(`${id}-pdf`);
+                  const busyCad = uploading?.startsWith(`${id}-cad`);
+                  const progress = (key: string) => (uploading?.startsWith(key) ? uploading.split("|")[1] ?? "" : "");
                   return (
                     <div key={id} className="rounded-xl border border-border p-4">
                       <div className="text-sm font-bold">{label}</div>
                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
                         <div>
-                          <UploadButton
-                            label={uploading === `${id}-pdf` ? "Uploading PDF ZIP…" : s.pdf_zip_path ? "Replace PDF ZIP" : "Upload PDF ZIP"}
-                            accept=".zip,application/zip,application/x-zip-compressed"
-                            onFile={(f) => onSetZip(id, "pdf", f)}
+                          <FolderUploadButton
+                            label={busyPdf ? `Uploading PDF folder… ${progress(`${id}-pdf`)}` : s.pdf_folder_path ? "Replace PDF folder" : "Choose PDF folder"}
+                            onFiles={(fl) => onSetFolder(id, "pdf", fl)}
                             disabled={!!uploading}
-                            icon={faFile}
                           />
-                          {s.pdf_zip_path && <div className="mt-1 truncate text-[11px] text-emerald-600">✓ {s.pdf_zip_path.split("/").pop()}</div>}
+                          {s.pdf_folder_path && <div className="mt-1 truncate text-[11px] text-emerald-600">✓ PDF folder uploaded</div>}
                         </div>
                         <div>
-                          <UploadButton
-                            label={uploading === `${id}-cad` ? "Uploading CAD ZIP…" : s.cad_zip_path ? "Replace CAD ZIP" : "Upload CAD ZIP"}
-                            accept=".zip,application/zip,application/x-zip-compressed"
-                            onFile={(f) => onSetZip(id, "cad", f)}
+                          <FolderUploadButton
+                            label={busyCad ? `Uploading CAD folder… ${progress(`${id}-cad`)}` : s.cad_folder_path ? "Replace CAD folder" : "Choose CAD folder"}
+                            onFiles={(fl) => onSetFolder(id, "cad", fl)}
                             disabled={!!uploading}
-                            icon={faFile}
                           />
-                          {s.cad_zip_path && <div className="mt-1 truncate text-[11px] text-emerald-600">✓ {s.cad_zip_path.split("/").pop()}</div>}
+                          {s.cad_folder_path && <div className="mt-1 truncate text-[11px] text-emerald-600">✓ CAD folder uploaded</div>}
                         </div>
                       </div>
                     </div>
@@ -784,6 +813,26 @@ function UploadButton({ label, accept, onFile, disabled, icon }: { label: string
     </label>
   );
 }
+
+function FolderUploadButton({ label, onFiles, disabled }: { label: string; onFiles: (files: FileList) => void; disabled?: boolean }) {
+  return (
+    <label className={`inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-secondary px-4 py-3 text-sm font-semibold hover:bg-accent ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
+      <FontAwesomeIcon icon={faFolderOpen} />
+      {label}
+      <input
+        type="file"
+        className="hidden"
+        // @ts-expect-error non-standard directory-picker attributes
+        webkitdirectory=""
+        directory=""
+        multiple
+        onChange={(e) => e.target.files?.length && onFiles(e.target.files)}
+      />
+    </label>
+  );
+}
+
+
 
 /* -------------------- ORDERS -------------------- */
 function OrdersAdmin() {
