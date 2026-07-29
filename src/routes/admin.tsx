@@ -18,6 +18,7 @@ import {
   faMagnifyingGlass,
   faImage,
   faFile,
+  faFolderOpen,
 } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "sonner";
 import { usd } from "@/lib/format";
