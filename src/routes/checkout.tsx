@@ -38,7 +38,7 @@ function Checkout() {
       // Create order
       const { data: order, error } = await supabase
         .from("orders")
-        .insert({ user_id: user.id, total, payment_provider: method, status: "completed" })
+        .insert({ user_id: user.id, total, payment_provider: method, status: "paid" })
         .select("id")
         .single();
       if (error) throw error;
@@ -47,6 +47,8 @@ function Checkout() {
       const orderItems = items.map((i) => ({
         order_id: order.id,
         plan_id: i.plan_id,
+        plan_name: i.plan?.name ?? null,
+        plan_number: i.plan?.plan_number ?? null,
         set_type: i.set_type,
         file_type: i.file_type,
         include_architectural: i.include_architectural,
