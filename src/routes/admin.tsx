@@ -486,12 +486,15 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
     finally { setUploading(null); }
   };
 
-  const onSetZip = async (k: SetKey, kind: "pdf" | "cad", file: File) => {
+  const onSetFolder = async (k: SetKey, kind: "pdf" | "cad", files: FileList) => {
     setUploading(`${k}-${kind}`);
     try {
-      const path = await uploadZipToPlanFiles(file, form.plan_number, k, kind);
-      setSet(k, kind === "pdf" ? { pdf_zip_path: path } : { cad_zip_path: path });
-      toast.success(`${kind.toUpperCase()} ZIP uploaded`);
+      const list = Array.from(files);
+      const path = await uploadFolderToPlanFiles(list, form.plan_number, k, kind, (done, total) =>
+        setUploading(`${k}-${kind}|${done}/${total}`)
+      );
+      setSet(k, kind === "pdf" ? { pdf_folder_path: path } : { cad_folder_path: path });
+      toast.success(`${kind.toUpperCase()} folder uploaded (${list.length} file(s))`);
     } catch (e) { toast.error((e as Error).message); }
     finally { setUploading(null); }
   };
