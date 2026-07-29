@@ -115,7 +115,7 @@ function Overview() {
   useEffect(() => {
     (async () => {
       const [{ data: orders }, { count: plansCount }, { count: dlCount }, { count: profilesCount }] = await Promise.all([
-        supabase.from("orders").select("id,total,created_at,status,user_id").eq("status", "paid").order("created_at", { ascending: false }),
+        supabase.from("orders").select("id,total,created_at,status,user_id").in("status", ["paid", "completed"]).order("created_at", { ascending: false }),
         supabase.from("plans").select("*", { count: "exact", head: true }),
         supabase.from("downloads").select("*", { count: "exact", head: true }),
         supabase.from("profiles").select("*", { count: "exact", head: true }),
