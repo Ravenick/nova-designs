@@ -103,7 +103,7 @@ function Downloads() {
   };
 
   const buildMasterZip = async (g: PlanGroup) => {
-    // Fetch all drawing sets for this plan to know each set's file paths.
+    // Fetch all drawing sets for this plan to know each set's storage folders.
     const { data: setsData, error } = await supabase
       .from("plan_drawing_sets")
       .select("*")
@@ -122,57 +122,29 @@ function Downloads() {
                  DRAWING_SET_ORDER.indexOf((b.set_type ?? "architectural") as DrawingSetType)
     );
 
+    const addFolder = async (prefix: string, zipFolder: JSZip) => {
+      const files = await listFolderFiles(prefix);
+      for (const path of files) {
+        const { data, error: dErr } = await supabase.storage.from("plan-files").download(path);
+        if (dErr) throw dErr;
+        const rel = path.slice(prefix.replace(/\/+$/, "").length + 1);
+        zipFolder.file(rel, await data.arrayBuffer());
+        added++;
+      }
+      return files.length;
+    };
+
     for (const r of ordered) {
       const st = r.set_type;
+      if (!st || !bySet.has(st)) continue;
+      const s = bySet.get(st)!;
+      const label = DRAWING_SET_LABELS[st];
       const wantsCad = r.file_type === "cad_pdf";
-      const label = st ? DRAWING_SET_LABELS[st] : "Plan";
-      const suffix = wantsCad ? "PDF + CAD" : "PDF";
 
-      if (st && bySet.has(st)) {
-        const s = bySet.get(st)!;
-        const paths: { path: string | null; kind: "PDF" | "CAD" }[] = [
-          { path: s.pdf_zip_path, kind: "PDF" },
-          ...(wantsCad ? [{ path: s.cad_zip_path, kind: "CAD" as const }] : []),
-        ];
-        // If PDF+CAD: one inner archive named "<Set> PDF + CAD.zip" that contains both files.
-        // If PDF only: one inner archive named "<Set> PDF.zip" that wraps the pdf zip.
-        const inner = new JSZip();
-        let anyFile = false;
-        for (const p of paths) {
-          if (!p.path) continue;
-          const { data, error: dErr } = await supabase.storage.from("plan-files").download(p.path);
-          if (dErr) throw dErr;
-          const name = `${label} ${p.kind}.zip`;
-          inner.file(name, await data.arrayBuffer());
-          anyFile = true;
-        }
-        if (anyFile) {
-          const innerBlob = await inner.generateAsync({ type: "uint8array" });
-          master.file(`${safeName(label)} ${suffix}.zip`, innerBlob);
-          added++;
-        }
-      } else {
-        // Legacy fallback — use plan-level pdf/cad paths.
-        const paths: { path: string | null; kind: "PDF" | "CAD" }[] = [
-          { path: r.plan.pdf_file_path, kind: "PDF" },
-          ...(wantsCad ? [{ path: r.plan.cad_file_path, kind: "CAD" as const }] : []),
-        ];
-        const inner = new JSZip();
-        let anyFile = false;
-        for (const p of paths) {
-          if (!p.path) continue;
-          const { data, error: dErr } = await supabase.storage.from("plan-files").download(p.path);
-          if (dErr) throw dErr;
-          const ext = p.path.split(".").pop() ?? "bin";
-          inner.file(`${label} ${p.kind}.${ext}`, await data.arrayBuffer());
-          anyFile = true;
-        }
-        if (anyFile) {
-          const innerBlob = await inner.generateAsync({ type: "uint8array" });
-          master.file(`${safeName(label)} ${suffix}.zip`, innerBlob);
-          added++;
-        }
-      }
+      // Each purchased drawing set becomes a real folder inside the master ZIP.
+      const setFolder = master.folder(safeName(label))!;
+      if (s.pdf_folder_path) await addFolder(s.pdf_folder_path, setFolder.folder("PDF")!);
+      if (wantsCad && s.cad_folder_path) await addFolder(s.cad_folder_path, setFolder.folder("CAD")!);
     }
 
     if (added === 0) throw new Error("No files are available for this plan yet. Please contact support.");
