@@ -443,13 +443,13 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
       if (!data) return;
       setSetsForm((prev) => {
         const next = { ...prev };
-        for (const row of data as Array<{ set_type: SetKey; pdf_price: number; cad_price: number; pdf_zip_path: string | null; cad_zip_path: string | null }>) {
+        for (const row of data as Array<{ set_type: SetKey; pdf_price: number; cad_price: number; pdf_folder_path: string | null; cad_folder_path: string | null }>) {
           next[row.set_type] = {
             enabled: true,
             pdf_price: Number(row.pdf_price),
             cad_price: Number(row.cad_price),
-            pdf_zip_path: row.pdf_zip_path,
-            cad_zip_path: row.cad_zip_path,
+            pdf_folder_path: row.pdf_folder_path,
+            cad_folder_path: row.cad_folder_path,
           };
         }
         return next;
