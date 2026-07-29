@@ -117,7 +117,7 @@ export function PlanDetailModal({ plan, open, onOpenChange }: { plan: Plan | nul
                     key={i}
                     src={src}
                     alt={`${plan.name} — view ${i + 1}`}
-                    className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${i === slide ? "opacity-100" : "opacity-0"}`}
+                    className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 md:object-contain md:p-3 ${i === slide ? "opacity-100" : "opacity-0"}`}
                   />
                 ))}
                 {images.length > 1 && (
