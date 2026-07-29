@@ -813,6 +813,26 @@ function UploadButton({ label, accept, onFile, disabled, icon }: { label: string
   );
 }
 
+function FolderUploadButton({ label, onFiles, disabled }: { label: string; onFiles: (files: FileList) => void; disabled?: boolean }) {
+  return (
+    <label className={`inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-secondary px-4 py-3 text-sm font-semibold hover:bg-accent ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
+      <FontAwesomeIcon icon={faFolderOpen} />
+      {label}
+      <input
+        type="file"
+        className="hidden"
+        // @ts-expect-error non-standard directory-picker attributes
+        webkitdirectory=""
+        directory=""
+        multiple
+        onChange={(e) => e.target.files?.length && onFiles(e.target.files)}
+      />
+    </label>
+  );
+}
+
+
+
 /* -------------------- ORDERS -------------------- */
 function OrdersAdmin() {
   const [rows, setRows] = useState<Array<{ id: string; total: number; status: string; created_at: string; user_id: string; email?: string | null; items?: number }>>([]);
