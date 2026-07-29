@@ -128,7 +128,15 @@ export type Database = {
           plan_id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "favorites_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_items: {
         Row: {
@@ -137,6 +145,8 @@ export type Database = {
           include_architectural: boolean
           order_id: string
           plan_id: string
+          plan_name: string | null
+          plan_number: string | null
           set_type: Database["public"]["Enums"]["drawing_set_type"] | null
           unit_price: number
         }
@@ -146,6 +156,8 @@ export type Database = {
           include_architectural?: boolean
           order_id: string
           plan_id: string
+          plan_name?: string | null
+          plan_number?: string | null
           set_type?: Database["public"]["Enums"]["drawing_set_type"] | null
           unit_price: number
         }
@@ -155,6 +167,8 @@ export type Database = {
           include_architectural?: boolean
           order_id?: string
           plan_id?: string
+          plan_name?: string | null
+          plan_number?: string | null
           set_type?: Database["public"]["Enums"]["drawing_set_type"] | null
           unit_price?: number
         }
@@ -204,10 +218,12 @@ export type Database = {
       }
       plan_drawing_sets: {
         Row: {
+          cad_folder_path: string | null
           cad_price: number
           cad_zip_path: string | null
           created_at: string
           id: string
+          pdf_folder_path: string | null
           pdf_price: number
           pdf_zip_path: string | null
           plan_id: string
@@ -215,10 +231,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cad_folder_path?: string | null
           cad_price?: number
           cad_zip_path?: string | null
           created_at?: string
           id?: string
+          pdf_folder_path?: string | null
           pdf_price?: number
           pdf_zip_path?: string | null
           plan_id: string
@@ -226,10 +244,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cad_folder_path?: string | null
           cad_price?: number
           cad_zip_path?: string | null
           created_at?: string
           id?: string
+          pdf_folder_path?: string | null
           pdf_price?: number
           pdf_zip_path?: string | null
           plan_id?: string
