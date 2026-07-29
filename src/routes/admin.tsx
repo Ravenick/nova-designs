@@ -666,8 +666,11 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
 
           {step === 3 && (
             <section>
-              <SectionTitle>Upload ZIP files</SectionTitle>
-              <p className="mt-1 text-xs text-muted-foreground">Only .zip files are accepted. Upload one ZIP for PDF and one for CAD per enabled set.</p>
+              <SectionTitle>Upload drawing folders</SectionTitle>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Select a <strong>folder</strong> for PDF and a folder for CAD per enabled set. The folder contents are delivered to
+                customers inside a single ZIP named after the house plan.
+              </p>
               <div className="mt-3 space-y-4">
                 {DRAW_SETS.filter(({ id }) => setsForm[id].enabled).length === 0 && (
                   <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
@@ -676,29 +679,28 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
                 )}
                 {DRAW_SETS.filter(({ id }) => setsForm[id].enabled).map(({ id, label }) => {
                   const s = setsForm[id];
+                  const busyPdf = uploading?.startsWith(`${id}-pdf`);
+                  const busyCad = uploading?.startsWith(`${id}-cad`);
+                  const progress = (key: string) => (uploading?.startsWith(key) ? uploading.split("|")[1] ?? "" : "");
                   return (
                     <div key={id} className="rounded-xl border border-border p-4">
                       <div className="text-sm font-bold">{label}</div>
                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
                         <div>
-                          <UploadButton
-                            label={uploading === `${id}-pdf` ? "Uploading PDF ZIP…" : s.pdf_zip_path ? "Replace PDF ZIP" : "Upload PDF ZIP"}
-                            accept=".zip,application/zip,application/x-zip-compressed"
-                            onFile={(f) => onSetZip(id, "pdf", f)}
+                          <FolderUploadButton
+                            label={busyPdf ? `Uploading PDF folder… ${progress(`${id}-pdf`)}` : s.pdf_folder_path ? "Replace PDF folder" : "Choose PDF folder"}
+                            onFiles={(fl) => onSetFolder(id, "pdf", fl)}
                             disabled={!!uploading}
-                            icon={faFile}
                           />
-                          {s.pdf_zip_path && <div className="mt-1 truncate text-[11px] text-emerald-600">✓ {s.pdf_zip_path.split("/").pop()}</div>}
+                          {s.pdf_folder_path && <div className="mt-1 truncate text-[11px] text-emerald-600">✓ PDF folder uploaded</div>}
                         </div>
                         <div>
-                          <UploadButton
-                            label={uploading === `${id}-cad` ? "Uploading CAD ZIP…" : s.cad_zip_path ? "Replace CAD ZIP" : "Upload CAD ZIP"}
-                            accept=".zip,application/zip,application/x-zip-compressed"
-                            onFile={(f) => onSetZip(id, "cad", f)}
+                          <FolderUploadButton
+                            label={busyCad ? `Uploading CAD folder… ${progress(`${id}-cad`)}` : s.cad_folder_path ? "Replace CAD folder" : "Choose CAD folder"}
+                            onFiles={(fl) => onSetFolder(id, "cad", fl)}
                             disabled={!!uploading}
-                            icon={faFile}
                           />
-                          {s.cad_zip_path && <div className="mt-1 truncate text-[11px] text-emerald-600">✓ {s.cad_zip_path.split("/").pop()}</div>}
+                          {s.cad_folder_path && <div className="mt-1 truncate text-[11px] text-emerald-600">✓ CAD folder uploaded</div>}
                         </div>
                       </div>
                     </div>
