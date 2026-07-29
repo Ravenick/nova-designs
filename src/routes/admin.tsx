@@ -545,8 +545,8 @@ function PlanFormModal({ plan, onClose, onSaved }: { plan: Plan | null; onClose:
           set_type: k,
           pdf_price: v.pdf_price,
           cad_price: v.cad_price,
-          pdf_zip_path: v.pdf_zip_path,
-          cad_zip_path: v.cad_zip_path,
+          pdf_folder_path: v.pdf_folder_path,
+          cad_folder_path: v.cad_folder_path,
         }));
         const { error } = await supabase.from("plan_drawing_sets").upsert(rows, { onConflict: "plan_id,set_type" });
         if (error) throw error;
