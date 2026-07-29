@@ -52,4 +52,6 @@ export type PlanDrawingSet = {
   cad_price: number;
   pdf_zip_path: string | null;
   cad_zip_path: string | null;
+  pdf_folder_path: string | null;
+  cad_folder_path: string | null;
 };
